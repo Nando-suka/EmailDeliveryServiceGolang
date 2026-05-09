@@ -11,17 +11,22 @@ import (
 )
 
 type Sender struct {
-	cfg   *config.Config
-	queue *queue.RedisQueue
-	quit  chan bool
+	cfg    *config.Config
+	queue  queue.Queue
+	dialer GomailDialer
+	quit   chan bool
 }
 
-func NewSender(cfg *config.Config, q *queue.RedisQueue) *Sender {
-	return &Sender{
+func NewSender(cfg *config.Config, q queue.Queue, dialer ...GomailDialer) *Sender {
+	s := &Sender{
 		cfg:   cfg,
 		queue: q,
 		quit:  make(chan bool),
 	}
+	if len(dialer) > 0 {
+		s.dialer = dialer[0]
+	}
+	return s
 }
 
 func (s *Sender) Start(workerID int) {
@@ -43,7 +48,16 @@ func (s *Sender) Start(workerID int) {
 
 func (s *Sender) processTask(workerID int, task *model.EmailTask) {
 	log.Printf("[Worker %d] mengirim email %s ke %v", workerID, task.ID, task.To)
-	err := s.sendEmail(task)
+	dialer := s.dialer
+	if dialer == nil {
+		dialer = &RealDialer{
+			Host: s.cfg.SMTPHost,
+			Port: s.cfg.SMTPPort,
+			User: s.cfg.SMTPUser,
+			Pass: s.cfg.SMTPPassword,
+		}
+	}
+	err := s.sendEmail(task, dialer)
 	if err != nil {
 		log.Printf("[Worker %d] gagal kirim email %s: %v", workerID, task.ID, err)
 		task.Retries++
@@ -62,7 +76,7 @@ func (s *Sender) processTask(workerID int, task *model.EmailTask) {
 	}
 }
 
-func (s *Sender) sendEmail(task *model.EmailTask) error {
+func (s *Sender) sendEmail(task *model.EmailTask, dialer GomailDialer) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", m.FormatAddress(s.cfg.FromEmail, s.cfg.FromName))
 	m.SetHeader("To", task.To...)
@@ -73,8 +87,7 @@ func (s *Sender) sendEmail(task *model.EmailTask) error {
 	}
 	m.SetBody(contentType, task.Body)
 
-	d := gomail.NewDialer(s.cfg.SMTPHost, s.cfg.SMTPPort, s.cfg.SMTPUser, s.cfg.SMTPPassword)
-	return d.DialAndSend(m)
+	return dialer.DialAndSend(m)
 }
 
 func (s *Sender) Stop() {

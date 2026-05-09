@@ -11,11 +11,11 @@ import (
 )
 
 type EmailHandler struct {
-	queue      *queue.RedisQueue
+	queue      queue.Queue
 	maxRetries int
 }
 
-func NewEmailHandler(q *queue.RedisQueue, maxRetries int) *EmailHandler {
+func NewEmailHandler(q queue.Queue, maxRetries int) *EmailHandler {
 	return &EmailHandler{queue: q, maxRetries: maxRetries}
 }
 
