@@ -1,6 +1,11 @@
 package config
 
-import "os"
+import (
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
 
 type Config struct {
 	SMTPHost     string
@@ -15,24 +20,71 @@ type Config struct {
 	MaxRetries   int
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
+	requiredVars := []string{
+		"SMTP_HOST",
+		"SMTP_PORT",
+		"FROM_EMAIL",
+		"FROM_NAME",
+		"REDIS_ADDR",
+	}
+
+	missing := make([]string, 0)
+	for _, key := range requiredVars {
+		if strings.TrimSpace(os.Getenv(key)) == "" {
+			missing = append(missing, key)
+		}
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("missing required env vars: %s", strings.Join(missing, ", "))
+	}
+
+	smtpPort, err := parseIntEnv("SMTP_PORT", 587)
+	if err != nil {
+		return nil, err
+	}
+	workerCount, err := parseIntEnv("WORKER_COUNT", 5)
+	if err != nil {
+		return nil, err
+	}
+	maxRetries, err := parseIntEnv("MAX_RETRIES", 3)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
-		SMTPHost:     getEnv("SMTP_HOST", "smtp.mailtrap.io"),
-		SMTPPort:     587,
+		SMTPHost:     getEnv("SMTP_HOST", ""),
+		SMTPPort:     smtpPort,
 		SMTPUser:     getEnv("SMTP_USER", ""),
 		SMTPPassword: getEnv("SMTP_PASS", ""),
-		FromEmail:    getEnv("FROM_EMAIL", "no-reply@yourdomain.com"),
-		FromName:     getEnv("FROM_NAME", "Email Service"),
-		RedisAddr:    getEnv("REDIS_ADDR", "localhost:6379"),
+		FromEmail:    getEnv("FROM_EMAIL", ""),
+		FromName:     getEnv("FROM_NAME", ""),
+		RedisAddr:    getEnv("REDIS_ADDR", ""),
 		RedisPass:    getEnv("REDIS_PASS", ""),
-		WorkerCount:  5,
-		MaxRetries:   3,
-	}
+		WorkerCount:  workerCount,
+		MaxRetries:   maxRetries,
+	}, nil
 }
 
-func getEnv(key, falback string) string {
+func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
 	}
-	return falback
+	return fallback
+}
+
+func parseIntEnv(key string, fallback int) (int, error) {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback, nil
+	}
+
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s: %q must be a number", key, value)
+	}
+	if n <= 0 {
+		return 0, fmt.Errorf("invalid %s: %d must be > 0", key, n)
+	}
+	return n, nil
 }

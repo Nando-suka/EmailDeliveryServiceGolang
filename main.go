@@ -16,7 +16,10 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("configuration error: %v", err)
+	}
 	// Inisialisasi antrean
 	q := queue.NewRedisQueue(cfg.RedisAddr, cfg.RedisPass, "email:queue")
 
