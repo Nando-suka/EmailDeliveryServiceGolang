@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -21,6 +23,10 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
+	// Best effort: load .env for local development.
+	// Environment variables already set in the OS still take precedence.
+	_ = godotenv.Load(".env")
+
 	requiredVars := []string{
 		"SMTP_HOST",
 		"SMTP_PORT",
