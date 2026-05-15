@@ -1,0 +1,41 @@
+# Secrets and local overrides (never commit)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Go build outputs
+/bin/
+/dist/
+/build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+*.prof
+*.pprof
+
+# Module cache (if vendored locally, uncomment)
+# vendor/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+tmp/
+temp/
